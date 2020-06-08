@@ -10,8 +10,8 @@ import (
 	"os/signal"
 	"time"
 
-    ws "github.com/MadhanRaj96/chess-go/src/websocket"
-    m "github.com/MadhanRaj96/chess-go/src/models"
+    "github.com/MadhanRaj96/chess-go/src/ws"
+    "github.com/MadhanRaj96/chess-go/src/models"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
