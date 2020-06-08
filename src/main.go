@@ -10,14 +10,15 @@ import (
 	"os/signal"
 	"time"
 
-    "github.com/MadhanRaj96/chess-go/src/pkg/websocket"
+    ws "github.com/MadhanRaj96/chess-go/src/websocket"
+    m "github.com/MadhanRaj96/chess-go/src/models"
 	"github.com/gorilla/mux"
 	"github.com/gorilla/websocket"
 )
 
 var clients = make(map[*websocket.Conn]bool)
 
-var linker = make(chan gameChannel)
+var linker = make(chan m.Game)
 
 // Returns an int >= min, < max
 func randomInt(min, max int) int {
@@ -43,16 +44,18 @@ func getColor() string {
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	log.Println("Upgrading connection to a WS")
-	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
-	ws, err := upgrader.Upgrade(w, r, nil)
+	s, err := ws.Upgrade(w, r)
 	if err != nil {
 		log.Fatal(err)
 	}
+    var u m.User
+    go ws.Worker(s, &u)
 	/*global client storage*/
 	//clients[ws] = true
+    /*
 	for {
-		var msg GameReq
-		var channel gameChannel
+		var msg m.GameReq
+		var channel m.Game
 
 		err := ws.ReadJSON(&msg)
 
@@ -76,8 +79,9 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 
 	}
 	defer ws.Close()
+    */
 }
-
+/*
 func handleMessages() {
 	for {
 		channel := <-linker
@@ -85,7 +89,7 @@ func handleMessages() {
 		channel.ws.WriteJSON(channel.resp)
 	}
 }
-
+*/
 func main() {
 	fmt.Println("inside main")
 	var wait time.Duration
@@ -93,7 +97,7 @@ func main() {
 	r := mux.NewRouter()
 	//r.HandleFunc("/", homeHandler)
 	r.HandleFunc("/", handleConnections)
-	go handleMessages()
+	//go handleMessages()
 
 	srv := &http.Server{
 		Addr: "127.0.0.1:8000",
