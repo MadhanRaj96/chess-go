@@ -1,7 +1,7 @@
 package models
 
 import (
-    "github.com/gorilla/websocket"
+	"github.com/gorilla/websocket"
 )
 
 //Game type
@@ -14,6 +14,7 @@ type Game struct {
 //User struct to hold user details
 type User struct {
 	UserID string
+	Color  *string
 	GameID *string
 	Conn   *websocket.Conn
 }
@@ -31,7 +32,7 @@ type GameResp struct {
 	Color   string `json:"color"`
 }
 
-func (u User) GetGame() (Game) {
-    var g Game
-    return g
+func (u User) GetGame() Game {
+	var g Game
+	return g
 }
