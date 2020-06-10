@@ -2,13 +2,15 @@ package models
 
 import (
 	"github.com/gorilla/websocket"
+	"sync"
 )
 
 //Game type
 type Game struct {
 	GameID  string
-	Player1 *websocket.Conn
-	Player2 *websocket.Conn
+	Player1 *User
+	Player2 *User
+	mux 	 sync.RWMutex
 }
 
 //User struct to hold user details
@@ -17,6 +19,7 @@ type User struct {
 	Color  *string
 	GameID *string
 	Conn   *websocket.Conn
+	mux 	 sync.RWMutex
 }
 
 //GameReq Request
