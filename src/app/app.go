@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"log"
-	"math/rand"
 	"net/http"
 	"os"
 	"os/signal"
@@ -22,17 +21,20 @@ type App struct {
 }
 
 func (app *App) Init() {
+	log.Println("Initializing app")
 	app.r = mux.NewRouter().StrictSlash(true)
 	app.initializeRoutes()
 }
 
 func (app *App) initializeRoutes() {
+	log.Println("Initializing Routes")
 	app.r.HandleFunc("/", handleConnections)
-	app.r.HandleFunc("/gameId/id:{[0-9]+}", gameRequestHandler)
+	app.r.HandleFunc("/gameId/{id:[0-9]+}", gameRequestHandler).Methods("GET")
 }
 
 //Run starts the server
 func (app *App) Run() {
+	log.Println("Running server on 127.0.0.1:8000")
 	var wait time.Duration
 	srv := &http.Server{
 		Addr: "127.0.0.1:8000",
@@ -71,47 +73,8 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 	var u m.User
 	go ws.Worker(s, &u)
-	/*global client storage*/
-	//clients[ws] = true
-	/*
-		for {
-			var msg m.GameReq
-			var channel m.Game
-
-			err := ws.ReadJSON(&msg)
-
-			if err != nil {
-				log.Printf("JSON Parse error info: %#v", err)
-				delete(clients, ws)
-				log.Println("Closing Connection")
-				break
-			}
-			log.Printf("Received Message from user: %s", msg.UserID)
-
-			channel.ws = ws
-			channel.resp = &GameResp{
-				Message: "gameId",
-				GameID:  msg.UserID + randomString(6),
-				Color:   getColor(),
-			}
-
-			log.Printf("Sending Message to User: %s", msg.UserID)
-			linker <- channel
-
-		}
-		defer ws.Close()
-	*/
 }
 
-/*
-func handleMessages() {
-	for {
-		channel := <-linker
-
-		channel.ws.WriteJSON(channel.resp)
-	}
-}
-*/
 func gameRequestHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["id"]
@@ -128,7 +91,7 @@ func gameRequestHandler(w http.ResponseWriter, r *http.Request) {
 		resp.Color = ""
 	} else {
 		resp.GameID = *user.GameID
-		resp.Color = *user.Color
+		resp.Color = user.Color
 	}
 
 	w.Header().Set("Content-Type", "application/json")

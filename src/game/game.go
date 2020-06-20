@@ -2,6 +2,7 @@ package game
 
 import (
 	"errors"
+	"log"
 	"sync"
 	"time"
 
@@ -12,29 +13,31 @@ import (
 //Engine maintains current games and ready players queue.
 
 type gameQueue struct {
-	m map[string] models.Game
+	m   map[string]*models.Game
 	mux sync.RWMutex
 }
-var gameQ gameQueue
+
+var gameQ = &gameQueue{m: make(map[string]*models.Game)}
 
 type userQueue struct {
-	m map[string] models.User
+	m   map[string]*models.User
 	mux sync.RWMutex
 }
-var userQ userQueue
 
+var userQ = &userQueue{m: make(map[string]*models.User)}
 
 type userChan struct {
-	u *models.User
-	c chan bool
+	u  *models.User
+	ch chan bool
 }
 type readyQueue struct {
 	q   []userChan
 	mux sync.RWMutex
 }
+
 var readyQ readyQueue
 
-func (r readyQueue) pop() (*userChan) {
+func (r *readyQueue) pop() *userChan {
 
 	if len(r.q) > 0 {
 		u := r.q[0]
@@ -47,7 +50,7 @@ func (r readyQueue) pop() (*userChan) {
 func createUser(u string) *models.User {
 	user := models.User{UserID: u}
 	userQ.mux.Lock()
-	userQ.m[u] = user
+	userQ.m[u] = &user
 	userQ.mux.Unlock()
 	return &user
 }
@@ -63,19 +66,26 @@ func createGame(user1 *models.User, user2 *models.User) {
 	gameID := user1.UserID + utils.RandomString(6)
 	game := models.Game{GameID: gameID, Player1: user1, Player2: user2}
 
-	user1.mux.Lock()
+	user1.Mux.Lock()
 	user1.GameID = &gameID
-	user1.Color  = utils.GetColor()
-	user1.mux.Unlock()
+	user1.Color = utils.GetColor()
+	user1.Mux.Unlock()
 
-  user1.mux.Lock()
+	user2.Mux.Lock()
 	user2.GameID = &gameID
-	user2.Color  = !user1.Color
-  user1.mux.Unlock()
+	if user1.Color == "white" {
+		user2.Color = "black"
+	} else {
+		user2.Color = "white"
+	}
+
+	user2.Mux.Unlock()
 
 	gameQ.mux.Lock()
-	gameQ.m[gameID] = game
+	gameQ.m[gameID] = &game
 	gameQ.mux.Unlock()
+
+	log.Printf("Creating game %s", gameID)
 
 }
 
@@ -88,31 +98,29 @@ func RegisterUser(u string) (*models.User, error) {
 	if len(readyQ.q) == 0 {
 		readyQ.mux.Lock()
 		ch := make(chan bool)
-		uc := userChan{u: user, c: ch}
+		uc := userChan{u: user, ch: ch}
 		readyQ.q = append(readyQ.q, uc)
 		readyQ.mux.Unlock()
 
 		select {
-			case <-ch:
-				return user, nil
+		case <-ch:
+			return user, nil
 
-			case <-time.After(1 * time.Second):
-				_ = readyQ.pop()
-				deleteUser(user)
-				return user, err
+		case <-time.After(10 * time.Second):
+			_ = readyQ.pop()
+			deleteUser(user)
+			return user, err
 		}
 	} else {
 		user1 := readyQ.pop()
 		if user1 != nil {
 			createGame(user, user1.u)
-			user1.ch<-true
+			user1.ch <- true
 			return user, nil
-		} else {
-			deleteUser(user)
-			return user, err
 		}
+		deleteUser(user)
+		return user, err
 
 	}
-
 
 }

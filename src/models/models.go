@@ -1,8 +1,9 @@
 package models
 
 import (
-	"github.com/gorilla/websocket"
 	"sync"
+
+	"github.com/gorilla/websocket"
 )
 
 //Game type
@@ -10,16 +11,16 @@ type Game struct {
 	GameID  string
 	Player1 *User
 	Player2 *User
-	mux 	 sync.RWMutex
+	mux     sync.RWMutex
 }
 
 //User struct to hold user details
 type User struct {
 	UserID string
-	Color  *string
+	Color  string
 	GameID *string
 	Conn   *websocket.Conn
-	mux 	 sync.RWMutex
+	Mux    sync.RWMutex
 }
 
 //GameReq Request
@@ -30,12 +31,20 @@ type GameReq struct {
 
 //GameResp response
 type GameResp struct {
-	GameID  string `json:"gameId"`
-	Message string `json:"type"`
-	Color   string `json:"color"`
+	GameID string `json:"gameId"`
+	Color  string `json:"color"`
 }
 
-func (u User) GetGame() Game {
+//Move represents a chess Move
+type Move struct {
+	Type   string `json:"type"`
+	GameID string `json:"gameId"`
+	State  string `json:"state"`
+	Color  string `json:"color"`
+}
+
+//GetGame returns game
+func (u *User) GetGame() *Game {
 	var g Game
-	return g
+	return &g
 }

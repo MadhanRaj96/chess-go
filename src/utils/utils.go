@@ -1,4 +1,6 @@
-package "utils"
+package utils
+
+import "math/rand"
 
 // Returns an int >= min, < max
 func randomInt(min, max int) int {
@@ -14,7 +16,10 @@ func RandomString(len int) string {
 	return string(bytes)
 }
 
-func GetColor() int {
+func GetColor() string {
 	r := randomInt(1, 9)
-	return r%2
+	if r%2 == 0 {
+		return "white"
+	}
+	return "black"
 }
