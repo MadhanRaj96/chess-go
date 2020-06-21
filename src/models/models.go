@@ -42,9 +42,3 @@ type Move struct {
 	State  string `json:"state"`
 	Color  string `json:"color"`
 }
-
-//GetGame returns game
-func (u *User) GetGame() *Game {
-	var g Game
-	return &g
-}

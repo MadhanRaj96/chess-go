@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/MadhanRaj96/chess-go/src/game"
 	"github.com/MadhanRaj96/chess-go/src/models"
 	"github.com/gorilla/websocket"
 )
@@ -26,7 +27,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 
 //Worker reads message from a player and sends it to another player
 func Worker(conn *websocket.Conn, user *models.User) {
-	game := user.GetGame()
+	game := game.GetGameByID(*user.GameID)
 
 	player := game.Player1
 
@@ -44,8 +45,12 @@ func Worker(conn *websocket.Conn, user *models.User) {
 		}
 		log.Printf("message %s", string(message))
 		/*send the data received to player 2*/
-
-		player.Conn.WriteMessage(mt, []byte(message))
+		if player == nil {
+			log.Println("nil player")
+		} else {
+			log.Printf("sending message to %s", player.UserID)
+			player.Conn.WriteMessage(mt, []byte(message))
+		}
 	}
 	defer conn.Close()
 }

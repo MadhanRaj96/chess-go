@@ -28,7 +28,7 @@ func (app *App) Init() {
 
 func (app *App) initializeRoutes() {
 	log.Println("Initializing Routes")
-	app.r.HandleFunc("/", handleConnections)
+	app.r.HandleFunc("/{uid:[0-9]+}", handleConnections)
 	app.r.HandleFunc("/gameId/{id:[0-9]+}", gameRequestHandler).Methods("GET")
 }
 
@@ -66,13 +66,20 @@ func (app *App) Run() {
 }
 
 func handleConnections(w http.ResponseWriter, r *http.Request) {
-	log.Println("Upgrading connection to a WS")
+	vars := mux.Vars(r)
+	userID := vars["uid"]
+	user := game.GetUser(userID)
+	if user == nil {
+		log.Fatal("Invalid USER ID")
+		return
+	}
+	log.Printf("Upgrading %s connection to a WS", userID)
 	s, err := ws.Upgrade(w, r)
 	if err != nil {
 		log.Fatal(err)
 	}
-	var u m.User
-	go ws.Worker(s, &u)
+	user.Conn = s
+	go ws.Worker(s, user)
 }
 
 func gameRequestHandler(w http.ResponseWriter, r *http.Request) {

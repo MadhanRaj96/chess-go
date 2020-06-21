@@ -85,7 +85,7 @@ func createGame(user1 *models.User, user2 *models.User) {
 	gameQ.m[gameID] = &game
 	gameQ.mux.Unlock()
 
-	log.Printf("Creating game %s", gameID)
+	log.Printf("Creating game %s player 1: %s player 2:%s", gameID, user1.UserID, user2.UserID)
 
 }
 
@@ -123,4 +123,16 @@ func RegisterUser(u string) (*models.User, error) {
 
 	}
 
+}
+
+//GetUser gets user by userID
+func GetUser(u string) *models.User {
+	user := userQ.m[u]
+	return user
+}
+
+//GetGameByID returns game by ID
+func GetGameByID(g string) *models.Game {
+	game := gameQ.m[g]
+	return game
 }
