@@ -3,9 +3,10 @@ package utils
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"math/rand"
-	"os/exec"
+	"strings"
+
+	"github.com/google/uuid"
 )
 
 // Returns an int >= min, < max
@@ -24,14 +25,11 @@ func RandomString(len int) string {
 
 // GenerateGameID -  new Game ID on each request
 func GenerateGameID() string {
-	out, err := exec.Command("uuidgen").Output()
+	out := uuid.New()
+	uuid := strings.Replace(out.String(), "-", "", -1)
+	fmt.Println(uuid)
 
-	if err != nil {
-		log.Fatal(err)
-	}
-	fmt.Println(out)
-
-	return base64.RawURLEncoding.EncodeToString(out)
+	return base64.RawURLEncoding.EncodeToString([]byte(uuid))
 }
 
 // GetColor of player

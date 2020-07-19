@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/MadhanRaj96/chess-go/src/game"
+	"github.com/MadhanRaj96/chess-go/src/models"
 	"github.com/MadhanRaj96/chess-go/src/ws"
 	"github.com/gorilla/mux"
 )
@@ -96,6 +98,15 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	}
 
 	go ws.Worker(s, user)
+
+	resp := models.GameResp{}
+
+	resp.GameID = *user.GameID
+	resp.Color = user.Color
+
+	fmt.Println(resp)
+
+	user.Conn.WriteJSON(resp)
 }
 
 func gameRequestHandler(w http.ResponseWriter, r *http.Request) {
