@@ -27,7 +27,7 @@ func Upgrade(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 
 //Worker reads message from a player and sends it to another player
 func Worker(conn *websocket.Conn, user *models.User) {
-	game := game.GetGameByID(*user.GameID)
+	game, _ := game.GetGameByID(*user.GameID)
 
 	player := game.Player1
 

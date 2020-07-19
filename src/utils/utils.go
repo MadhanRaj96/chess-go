@@ -2,9 +2,10 @@ package utils
 
 import (
 	"encoding/base64"
-	"fmt"
 	"math/rand"
 	"strings"
+
+	"github.com/MadhanRaj96/chess-go/src/models"
 
 	"github.com/google/uuid"
 )
@@ -27,16 +28,15 @@ func RandomString(len int) string {
 func GenerateGameID() string {
 	out := uuid.New()
 	uuid := strings.Replace(out.String(), "-", "", -1)
-	fmt.Println(uuid)
 
 	return base64.RawURLEncoding.EncodeToString([]byte(uuid))
 }
 
 // GetColor of player
-func GetColor() string {
+func GetColor() models.Color {
 	r := randomInt(1, 9)
 	if r%2 == 0 {
-		return "white"
+		return models.BLACK
 	}
-	return "black"
+	return models.WHITE
 }

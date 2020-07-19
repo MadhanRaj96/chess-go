@@ -6,18 +6,43 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+type state int
+
+const (
+	NEW state = iota
+	WAITING
+	RUNNING
+	FINISH
+)
+
+func (s state) String() string {
+	return [...]string{"NEW", "WAITING", "RUNNING", "FINISH"}[s]
+}
+
+type Color int
+
+const (
+	BLACK Color = iota
+	WHITE
+)
+
+func (c Color) String() string {
+	return [...]string{"BLACK", "WHITE"}[c]
+}
+
 //Game type
 type Game struct {
 	GameID  string
 	Player1 *User
 	Player2 *User
-	mux     sync.RWMutex
+	State   state
+	Mux     sync.RWMutex
 }
 
 //User struct to hold user details
 type User struct {
 	UserID string
-	Color  string
+	C      Color
 	GameID *string
 	Conn   *websocket.Conn
 	Mux    sync.RWMutex

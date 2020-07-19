@@ -20,7 +20,6 @@ func Init() {
 }
 
 func (r *readyQueue) pop() *userChan {
-
 	if len(r.q) > 0 {
 		u := r.q[0]
 		r.q = r.q[1:]
@@ -45,6 +44,45 @@ func DeleteUser(u *models.User) {
 	userQ.mux.Unlock()
 }
 
+//CreateGame creates a new game
+func CreateGame() *models.Game {
+	gameID := utils.GenerateGameID()
+	game := models.Game{GameID: gameID, Player1: nil, Player2: nil, State: models.NEW}
+
+	gameQ.mux.Lock()
+	gameQ.m[gameID] = &game
+	gameQ.mux.Unlock()
+
+	return &game
+}
+
+//AddPlayer adds a player to the game
+func AddPlayer(game *models.Game, user *models.User) {
+	game.Mux.Lock()
+	defer game.Mux.Unlock()
+	if game.State == models.NEW {
+		game.Player1 = user
+		game.State = models.WAITING
+		user.Mux.Lock()
+		user.GameID = &game.GameID
+		user.C = utils.GetColor()
+		user.Mux.Unlock()
+	} else if game.State == models.WAITING {
+		game.Player2 = user
+		game.State = models.RUNNING
+		user.Mux.Lock()
+		user.GameID = &game.GameID
+		if game.Player1.C == models.WHITE {
+			user.C = models.BLACK
+		} else {
+			user.C = models.WHITE
+		}
+		user.Mux.Unlock()
+	}
+
+}
+
+/*
 func createGame(user1 *models.User, user2 *models.User) {
 
 	gameID := utils.GenerateGameID()
@@ -72,6 +110,7 @@ func createGame(user1 *models.User, user2 *models.User) {
 	log.Printf("Creating game %s player 1: %s player 2:%s", gameID, user1.UserID, user2.UserID)
 
 }
+*/
 
 //RegisterUser registers user with the matchmaker
 func RegisterUser(user *models.User) error {
@@ -100,9 +139,9 @@ func GetUser(u string) *models.User {
 }
 
 //GetGameByID returns game by ID
-func GetGameByID(g string) *models.Game {
-	game := gameQ.m[g]
-	return game
+func GetGameByID(g string) (*models.Game, bool) {
+	game, ok := gameQ.m[g]
+	return game, ok
 }
 
 func matchmaker() {
@@ -114,7 +153,9 @@ func matchmaker() {
 				log.Fatal("Internal Error: unable to retrieve user.")
 				return
 			}
-			createGame(user1.u, user2.u)
+			game := CreateGame()
+			AddPlayer(game, user1.u)
+			AddPlayer(game, user2.u)
 			user1.ch <- true
 			user2.ch <- true
 		}

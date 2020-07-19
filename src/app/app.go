@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
@@ -30,8 +31,16 @@ func (app *App) Init() {
 
 func (app *App) initializeRoutes() {
 	log.Println("Initializing Routes")
-	app.r.HandleFunc("/{uid:[0-9]+}", handleConnections)
-	app.r.HandleFunc("/gameId/{id:[0-9]+}", gameRequestHandler).Methods("GET")
+	app.r.HandleFunc("/{uid:[0-9]+}", playOnline)
+	app.r.HandleFunc("/gameId/{[+]}", gameRequest).Methods("GET")
+	app.r.Path("/{uid:.*}").
+		Queries("gameId", "{.*}").
+		HandlerFunc(playWithFriends).
+		Name("playWithFriends")
+	app.r.Path("/validate").
+		Queries("gameId", "{[a-z]+}").
+		HandlerFunc(validateGame).
+		Name("validateGame")
 }
 
 //Run starts the server
@@ -67,7 +76,7 @@ func (app *App) Run() {
 	os.Exit(0)
 }
 
-func handleConnections(w http.ResponseWriter, r *http.Request) {
+func playOnline(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["uid"]
 	/*
@@ -102,37 +111,87 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 	resp := models.GameResp{}
 
 	resp.GameID = *user.GameID
-	resp.Color = user.Color
+	resp.Color = user.C.String()
 
 	fmt.Println(resp)
 
 	user.Conn.WriteJSON(resp)
 }
 
-func gameRequestHandler(w http.ResponseWriter, r *http.Request) {
+func gameRequest(w http.ResponseWriter, r *http.Request) {
+
+	log.Printf("Recieved a new game request")
+
+	game := game.CreateGame()
+
+	resp := make(map[string]string)
+	resp["gameId"] = game.GameID
+	JSONResponse(w, http.StatusOK, resp)
 	/*
-		vars := mux.Vars(r)
-		userID := vars["id"]
-
-		log.Printf("Recieved game request from user: %s", userID)
-
-		user, err := game.RegisterUser(userID)
-
-		resp := m.GameResp{}
-
-		if err != nil {
-			log.Println("No player found")
-			resp.GameID = ""
-			resp.Color = ""
-		} else {
-			resp.GameID = *user.GameID
-			resp.Color = user.Color
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
 			panic(err)
+		} else {
+			w.Write(resp)
 		}
 	*/
+
+}
+
+func playWithFriends(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	userID := vars["uid"]
+
+	gameID := r.FormValue("gameId")
+	g, ok := game.GetGameByID(gameID)
+
+	resp := make(map[string]string)
+	if ok == false {
+		log.Fatal("Invalid GameID")
+		JSONResponse(w, http.StatusUnprocessableEntity, resp)
+	}
+
+	s, err := ws.Upgrade(w, r)
+	if err != nil {
+		log.Fatal(err)
+		JSONResponse(w, http.StatusInternalServerError, resp)
+		return
+	}
+	user := game.CreateUser(userID)
+	if user == nil {
+		log.Fatal("Unable to create User")
+		JSONResponse(w, http.StatusInternalServerError, resp)
+		return
+	}
+	user.Conn = s
+	game.AddPlayer(g, user)
+	for g.State != models.RUNNING {
+
+	}
+
+	if g.Player1 == user {
+		resp["color"] = user.C.String()
+		resp["opponent"] = g.Player2.UserID
+	}
+	JSONResponse(w, http.StatusOK, resp)
+}
+
+func validateGame(w http.ResponseWriter, r *http.Request) {
+	gameID := r.FormValue("gameId")
+	_, ok := game.GetGameByID(gameID)
+	resp := make(map[string]bool)
+
+	resp["valid"] = ok
+	JSONResponse(w, http.StatusOK, resp)
+}
+
+//JSONResponse returns a JSON response
+func JSONResponse(w http.ResponseWriter, code int, output interface{}) {
+	// Convert our interface to JSON
+	response, _ := json.Marshal(output)
+	// Set the content type to json for browsers
+	w.Header().Set("Content-Type", "application/json")
+	// Our response code
+	w.WriteHeader(code)
+
+	w.Write(response)
 }
