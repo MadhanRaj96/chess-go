@@ -3,39 +3,21 @@ package game
 import (
 	"errors"
 	"log"
-	"sync"
-	"time"
 
 	"github.com/MadhanRaj96/chess-go/src/models"
 	"github.com/MadhanRaj96/chess-go/src/utils"
 )
 
-//Engine maintains current games and ready players queue.
-
-type gameQueue struct {
-	m   map[string]*models.Game
-	mux sync.RWMutex
-}
-
-var gameQ = &gameQueue{m: make(map[string]*models.Game)}
-
-type userQueue struct {
-	m   map[string]*models.User
-	mux sync.RWMutex
-}
-
-var userQ = &userQueue{m: make(map[string]*models.User)}
-
-type userChan struct {
-	u  *models.User
-	ch chan bool
-}
-type readyQueue struct {
-	q   []userChan
-	mux sync.RWMutex
-}
-
+var gameQ gameQueue
+var userQ userQueue
 var readyQ readyQueue
+
+//Init the game
+func Init() {
+	gameQ = gameQueue{m: make(map[string]*models.Game)}
+	userQ = userQueue{m: make(map[string]*models.User)}
+	go matchmaker()
+}
 
 func (r *readyQueue) pop() *userChan {
 
@@ -47,7 +29,8 @@ func (r *readyQueue) pop() *userChan {
 	return nil
 }
 
-func createUser(u string) *models.User {
+//CreateUser creates a new User
+func CreateUser(u string) *models.User {
 	user := models.User{UserID: u}
 	userQ.mux.Lock()
 	userQ.m[u] = &user
@@ -55,7 +38,8 @@ func createUser(u string) *models.User {
 	return &user
 }
 
-func deleteUser(u *models.User) {
+//DeleteUser deletes an existing User
+func DeleteUser(u *models.User) {
 	userQ.mux.Lock()
 	delete(userQ.m, u.UserID)
 	userQ.mux.Unlock()
@@ -63,7 +47,7 @@ func deleteUser(u *models.User) {
 
 func createGame(user1 *models.User, user2 *models.User) {
 
-	gameID := user1.UserID + utils.RandomString(6)
+	gameID := utils.GenerateGameID()
 	game := models.Game{GameID: gameID, Player1: user1, Player2: user2}
 
 	user1.Mux.Lock()
@@ -89,40 +73,24 @@ func createGame(user1 *models.User, user2 *models.User) {
 
 }
 
-//RegisterUser registers the user to the ready queue
-func RegisterUser(u string) (*models.User, error) {
-	//e.ready = append(e.ready, u)
-	user := createUser(u)
+//RegisterUser registers user with the matchmaker
+func RegisterUser(user *models.User) error {
+
 	err := errors.New("No player found")
 
-	if len(readyQ.q) == 0 {
-		readyQ.mux.Lock()
-		ch := make(chan bool)
-		uc := userChan{u: user, ch: ch}
-		readyQ.q = append(readyQ.q, uc)
-		readyQ.mux.Unlock()
+	readyQ.mux.Lock()
+	ch := make(chan bool)
+	uc := userChan{u: user, ch: ch}
+	readyQ.q = append(readyQ.q, uc)
+	readyQ.mux.Unlock()
 
-		select {
-		case <-ch:
-			return user, nil
-
-		case <-time.After(10 * time.Second):
-			_ = readyQ.pop()
-			deleteUser(user)
-			return user, err
+	select {
+	case res := <-ch:
+		if res {
+			return nil
 		}
-	} else {
-		user1 := readyQ.pop()
-		if user1 != nil {
-			createGame(user, user1.u)
-			user1.ch <- true
-			return user, nil
-		}
-		deleteUser(user)
-		return user, err
-
+		return err
 	}
-
 }
 
 //GetUser gets user by userID
@@ -135,4 +103,20 @@ func GetUser(u string) *models.User {
 func GetGameByID(g string) *models.Game {
 	game := gameQ.m[g]
 	return game
+}
+
+func matchmaker() {
+	for {
+		if len(readyQ.q) >= 2 {
+			user1 := readyQ.pop()
+			user2 := readyQ.pop()
+			if user1 == nil || user2 == nil {
+				log.Fatal("Internal Error: unable to retrieve user.")
+				return
+			}
+			createGame(user1.u, user2.u)
+			user1.ch <- true
+			user2.ch <- true
+		}
+	}
 }

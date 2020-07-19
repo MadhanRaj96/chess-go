@@ -2,7 +2,6 @@ package app
 
 import (
 	"context"
-	"encoding/json"
 	"log"
 	"net/http"
 	"os"
@@ -10,7 +9,6 @@ import (
 	"time"
 
 	"github.com/MadhanRaj96/chess-go/src/game"
-	m "github.com/MadhanRaj96/chess-go/src/models"
 	"github.com/MadhanRaj96/chess-go/src/ws"
 	"github.com/gorilla/mux"
 )
@@ -20,10 +18,12 @@ type App struct {
 	r *mux.Router
 }
 
+//Init the application
 func (app *App) Init() {
 	log.Println("Initializing app")
 	app.r = mux.NewRouter().StrictSlash(true)
 	app.initializeRoutes()
+	game.Init()
 }
 
 func (app *App) initializeRoutes() {
@@ -68,43 +68,60 @@ func (app *App) Run() {
 func handleConnections(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	userID := vars["uid"]
-	user := game.GetUser(userID)
-	if user == nil {
-		log.Fatal("Invalid USER ID")
-		return
-	}
+	/*
+		user := game.GetUser(userID)
+		if user == nil {
+			log.Fatal("Invalid USER ID")
+			return
+		}
+	*/
 	log.Printf("Upgrading %s connection to a WS", userID)
 	s, err := ws.Upgrade(w, r)
 	if err != nil {
 		log.Fatal(err)
+		return
+	}
+	user := game.CreateUser(userID)
+	if user == nil {
+		log.Fatal("Unable to create User")
+		return
 	}
 	user.Conn = s
+
+	/*finding opponent*/
+	err = game.RegisterUser(user)
+	if err != nil {
+		log.Fatal("Unable to find opponent")
+		return
+	}
+
 	go ws.Worker(s, user)
 }
 
 func gameRequestHandler(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	userID := vars["id"]
+	/*
+		vars := mux.Vars(r)
+		userID := vars["id"]
 
-	log.Printf("Recieved game request from user: %s", userID)
+		log.Printf("Recieved game request from user: %s", userID)
 
-	user, err := game.RegisterUser(userID)
+		user, err := game.RegisterUser(userID)
 
-	resp := m.GameResp{}
+		resp := m.GameResp{}
 
-	if err != nil {
-		log.Println("No player found")
-		resp.GameID = ""
-		resp.Color = ""
-	} else {
-		resp.GameID = *user.GameID
-		resp.Color = user.Color
-	}
+		if err != nil {
+			log.Println("No player found")
+			resp.GameID = ""
+			resp.Color = ""
+		} else {
+			resp.GameID = *user.GameID
+			resp.Color = user.Color
+		}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	if err := json.NewEncoder(w).Encode(resp); err != nil {
-		panic(err)
-	}
-
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		if err := json.NewEncoder(w).Encode(resp); err != nil {
+			panic(err)
+		}
+	*/
 }
