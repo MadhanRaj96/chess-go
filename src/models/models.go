@@ -27,7 +27,7 @@ const (
 )
 
 func (c Color) String() string {
-	return [...]string{"BLACK", "WHITE"}[c]
+	return [...]string{"black", "white"}[c]
 }
 
 //Game type
