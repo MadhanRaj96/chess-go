@@ -32,13 +32,19 @@ func (app *App) Init() {
 func (app *App) initializeRoutes() {
 	log.Println("Initializing Routes")
 	app.r.HandleFunc("/{uid:[0-9]+}", playOnline)
-	app.r.HandleFunc("/gameId/{[+]}", gameRequest).Methods("GET")
-	app.r.Path("/{uid:.*}").
-		Queries("gameId", "{.*}").
+
+	app.r.HandleFunc("/gameId/{[a-zA-Z0-9]+}", gameRequest).Methods("GET")
+	app.r.Path("/game/{[a-zA-Z0-9]+}").
+		Queries("userId", "{[0-9]+}").
+		HandlerFunc(startGame).
+		Name("startGame")
+
+	app.r.Path("/{uid:[0-9]+}").
+		Queries("gameId", "{[a-zA-Z0-9]+}").
 		HandlerFunc(playWithFriends).
 		Name("playWithFriends")
 	app.r.Path("/validate").
-		Queries("gameId", "{[a-z]+}").
+		Queries("gameId", "{[a-zA-Z0-9]+}").
 		HandlerFunc(validateGame).
 		Name("validateGame")
 }
@@ -74,6 +80,26 @@ func (app *App) Run() {
 
 	log.Println("shutting down")
 	os.Exit(0)
+}
+
+func startGame(w http.ResponseWriter, r *http.Request) {
+	s, err := ws.Upgrade(w, r)
+	if err != nil {
+		log.Fatal(err)
+		return
+	}
+
+	userID := r.FormValue("userId")
+
+	user := game.GetUser(userID)
+
+	if user == nil {
+		log.Fatal("invalid user id")
+		return
+	}
+
+	user.Conn = s
+	log.Printf("Updated user's websocket connection")
 }
 
 func playOnline(w http.ResponseWriter, r *http.Request) {
