@@ -8,6 +8,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 
 	"github.com/MadhanRaj96/chess-go/src/game"
@@ -31,23 +32,23 @@ func (app *App) Init() {
 
 func (app *App) initializeRoutes() {
 	log.Println("Initializing Routes")
-	app.r.HandleFunc("/{uid:[0-9]+}", playOnline)
 
-	app.r.HandleFunc("/gameId/{[a-zA-Z0-9]+}", gameRequest).Methods("GET")
+	app.r.Path("/validate").
+		HandlerFunc(validateGame).
+		Name("validateGame")
+
+	app.r.HandleFunc("/gameId/{uid:[a-zA-Z0-9]+}", gameRequest).Methods("GET")
+
 	app.r.Path("/game/{[a-zA-Z0-9]+}").
 		Queries("userId", "{[0-9]+}").
 		HandlerFunc(startGame).
 		Name("startGame")
 
-	app.r.Path("/{uid:[-a-zA-z0-9]+}").
-		Queries("gameId", "{[a-zA-Z0-9]+}").
+	app.r.HandleFunc("/{uid:[0-9]+}", playOnline)
+
+	app.r.Path("/room").
 		HandlerFunc(playWithFriends).
 		Name("playWithFriends")
-
-	app.r.Path("/validate").
-		Queries("gameId", "{[a-zA-Z0-9]+}").
-		HandlerFunc(validateGame).
-		Name("validateGame")
 
 }
 
@@ -85,6 +86,7 @@ func (app *App) Run() {
 }
 
 func startGame(w http.ResponseWriter, r *http.Request) {
+	log.Printf("inside start game")
 	s, err := ws.Upgrade(w, r)
 	if err != nil {
 		log.Fatal(err)
@@ -107,6 +109,7 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 }
 
 func playOnline(w http.ResponseWriter, r *http.Request) {
+	log.Printf("inside play online")
 	vars := mux.Vars(r)
 	userID := vars["uid"]
 	/*
@@ -151,11 +154,22 @@ func playOnline(w http.ResponseWriter, r *http.Request) {
 func gameRequest(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("Recieved a new game request")
+	vars := mux.Vars(r)
+	userID := vars["uid"]
 
-	game := game.CreateGame()
+	g := game.CreateGame()
+
+	user := game.CreateUser(userID)
+
+	if user == nil || g == nil {
+		log.Fatal("error in USER/GAME creation")
+	}
+
+	game.AddPlayer(g, user)
 
 	resp := make(map[string]string)
-	resp["gameId"] = game.GameID
+	resp["color"] = user.C.String()
+	resp["gameId"] = g.GameID
 	JSONResponse(w, http.StatusOK, resp)
 	/*
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -168,50 +182,66 @@ func gameRequest(w http.ResponseWriter, r *http.Request) {
 }
 
 func playWithFriends(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	userID := vars["uid"]
+	log.Printf("inside Play with friends")
 
 	gameID := r.FormValue("gameId")
+	userID := r.FormValue("userId")
 	g, ok := game.GetGameByID(gameID)
 
-	resp := make(map[string]string)
-	if ok == false {
-		log.Fatal("Invalid GameID")
-		JSONResponse(w, http.StatusUnprocessableEntity, resp)
-	}
+	log.Printf("userId: %s gameID: %s", userID, gameID)
 
 	s, err := ws.Upgrade(w, r)
 	if err != nil {
 		log.Fatal(err)
-		JSONResponse(w, http.StatusInternalServerError, resp)
 		return
 	}
 	log.Printf("Upgrading %s connection to a WS", userID)
-	user := game.CreateUser(userID)
+	user := game.GetUser(userID)
 	if user == nil {
-		log.Fatal("Unable to create User")
-		JSONResponse(w, http.StatusInternalServerError, resp)
-		return
+		log.Fatal("Invalid USER ID")
 	}
+
 	user.Conn = s
-	game.AddPlayer(g, user)
+
 	for g.State != models.RUNNING {
 
 	}
+	resp := models.GameResp{}
 
-	if g.Player1 == user {
-		resp["color"] = user.C.String()
-		resp["opponent"] = g.Player2.UserID
+	if ok == false {
+		log.Fatal("Invalid GameID")
+		return
 	}
-	JSONResponse(w, http.StatusOK, resp)
+	if g.Player1 == user {
+		resp.Opponent = g.Player2.UserID
+	} else {
+		resp.Opponent = g.Player1.UserID
+	}
+
+	user.Conn.WriteJSON(resp)
 }
 
 func validateGame(w http.ResponseWriter, r *http.Request) {
-	gameID := r.FormValue("gameId")
-	_, ok := game.GetGameByID(gameID)
-	resp := make(map[string]bool)
 
-	resp["valid"] = ok
+	log.Printf("inside validate game")
+
+	gameID := r.FormValue("gameId")
+	userID := r.FormValue("userId")
+
+	g, ok := game.GetGameByID(gameID)
+	user := game.CreateUser(userID)
+
+	if user == nil {
+		log.Fatal("error in USER creation")
+	}
+
+	game.AddPlayer(g, user)
+
+	resp := make(map[string]string)
+
+	resp["color"] = user.C.String()
+	resp["valid"] = strconv.FormatBool(ok)
+	log.Printf("Game ID: %s validation: %s", gameID, strconv.FormatBool(ok))
 	JSONResponse(w, http.StatusOK, resp)
 }
 
