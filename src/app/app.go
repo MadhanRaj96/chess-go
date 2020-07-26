@@ -43,6 +43,7 @@ func (app *App) initializeRoutes() {
 		Queries("gameId", "{[a-zA-Z0-9]+}").
 		HandlerFunc(playWithFriends).
 		Name("playWithFriends")
+
 	app.r.Path("/validate").
 		Queries("gameId", "{[a-zA-Z0-9]+}").
 		HandlerFunc(validateGame).
@@ -100,6 +101,8 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 
 	user.Conn = s
 	log.Printf("Updated user's websocket connection")
+
+	go ws.Worker(s, user)
 }
 
 func playOnline(w http.ResponseWriter, r *http.Request) {
