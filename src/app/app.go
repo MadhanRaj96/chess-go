@@ -105,7 +105,12 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 	if user.C == models.WHITE {
 		resp := models.GameResp{}
 		resp.Type = "ready"
-		user.Conn.WriteJSON(resp)
+		g, _ := game.GetGameByID(*user.GameID)
+		if g.Player1 == user {
+			g.Player2.Conn.WriteJSON(resp)
+		} else {
+			g.Player1.Conn.WriteJSON(resp)
+		}
 	}
 
 	user.Conn = s
