@@ -144,7 +144,7 @@ func playOnline(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	go ws.Worker(s, user)
+	//go ws.Worker(s, user)
 
 	resp := models.GameResp{}
 
@@ -176,13 +176,6 @@ func gameRequest(w http.ResponseWriter, r *http.Request) {
 	resp["color"] = user.C.String()
 	resp["gameId"] = g.GameID
 	JSONResponse(w, http.StatusOK, resp)
-	/*
-		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			panic(err)
-		} else {
-			w.Write(resp)
-		}
-	*/
 
 }
 

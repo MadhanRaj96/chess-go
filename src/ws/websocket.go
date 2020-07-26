@@ -27,7 +27,6 @@ func Upgrade(w http.ResponseWriter, r *http.Request) (*websocket.Conn, error) {
 
 //Worker reads message from a player and sends it to another player
 func Worker(conn *websocket.Conn, user *models.User) {
-	defer conn.Close()
 
 	g, _ := game.GetGameByID(*user.GameID)
 
@@ -46,12 +45,17 @@ func Worker(conn *websocket.Conn, user *models.User) {
 
 		mt, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Printf("JSON Parse error info: %#v", err)
+			log.Printf("JSON Parse error user %s info: %#v", err, user.UserID)
 			//delete(clients, ws)
-			resp := models.GameResp{}
-			resp.Type = "opponentLeft"
-			player.Conn.WriteJSON(resp)
+			if g.State == models.RUNNING {
+				resp := models.GameResp{}
+				resp.Type = "opponentLeft"
+				player.Conn.WriteJSON(resp)
+				conn.Close()
+				g.State = models.ABANDONED
+			}
 			game.DeleteUser(user)
+
 			break
 		}
 		log.Printf("message %s", string(message))

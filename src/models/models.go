@@ -12,6 +12,7 @@ const (
 	NEW state = iota
 	WAITING
 	RUNNING
+	ABANDONED
 	FINISH
 )
 
