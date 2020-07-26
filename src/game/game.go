@@ -42,6 +42,15 @@ func DeleteUser(u *models.User) {
 	userQ.mux.Lock()
 	delete(userQ.m, u.UserID)
 	userQ.mux.Unlock()
+	g, _ := GetGameByID(*u.GameID)
+	g.Mux.Lock()
+	if g.Player1 == u {
+		g.Player1 = nil
+	} else {
+		g.Player2 = nil
+	}
+	g.Mux.Unlock()
+	*u = models.User{}
 }
 
 //CreateGame creates a new game
@@ -54,6 +63,16 @@ func CreateGame() *models.Game {
 	gameQ.mux.Unlock()
 
 	return &game
+}
+
+//DeleteGame deletes a game
+func DeleteGame(game *models.Game) {
+	if game.Player1 == nil && game.Player2 == nil {
+		gameQ.mux.Lock()
+		delete(gameQ.m, game.GameID)
+		gameQ.mux.Unlock()
+		*game = models.Game{}
+	}
 }
 
 //AddPlayer adds a player to the game
