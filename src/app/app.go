@@ -102,6 +102,12 @@ func startGame(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if user.C == models.WHITE {
+		resp := models.GameResp{}
+		resp.Type = "ready"
+		user.Conn.WriteJSON(resp)
+	}
+
 	user.Conn = s
 	log.Printf("Updated user's websocket connection")
 
@@ -112,13 +118,7 @@ func playOnline(w http.ResponseWriter, r *http.Request) {
 	log.Printf("inside play online")
 	vars := mux.Vars(r)
 	userID := vars["uid"]
-	/*
-		user := game.GetUser(userID)
-		if user == nil {
-			log.Fatal("Invalid USER ID")
-			return
-		}
-	*/
+
 	log.Printf("Upgrading %s connection to a WS", userID)
 	s, err := ws.Upgrade(w, r)
 	if err != nil {

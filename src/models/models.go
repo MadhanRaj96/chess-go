@@ -59,6 +59,7 @@ type GameResp struct {
 	GameID   string `json:"gameId"`
 	Color    string `json:"color"`
 	Opponent string `json:"opponent"`
+	Type     string `json:"type"`
 }
 
 //Move represents a chess Move
