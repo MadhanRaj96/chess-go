@@ -39,7 +39,7 @@ func (app *App) initializeRoutes() {
 		HandlerFunc(startGame).
 		Name("startGame")
 
-	app.r.Path("/{uid:[0-9]+}").
+	app.r.Path("/{uid:[-a-zA-z0-9]+}").
 		Queries("gameId", "{[a-zA-Z0-9]+}").
 		HandlerFunc(playWithFriends).
 		Name("playWithFriends")
@@ -48,6 +48,7 @@ func (app *App) initializeRoutes() {
 		Queries("gameId", "{[a-zA-Z0-9]+}").
 		HandlerFunc(validateGame).
 		Name("validateGame")
+
 }
 
 //Run starts the server
@@ -185,6 +186,7 @@ func playWithFriends(w http.ResponseWriter, r *http.Request) {
 		JSONResponse(w, http.StatusInternalServerError, resp)
 		return
 	}
+	log.Printf("Upgrading %s connection to a WS", userID)
 	user := game.CreateUser(userID)
 	if user == nil {
 		log.Fatal("Unable to create User")
